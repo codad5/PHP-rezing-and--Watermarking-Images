@@ -1,6 +1,6 @@
 <?php
 
-$original = "../images/image2.jpg";
+$original = "../00001__images/image2.jpg";
 $destination = "edited/";
 
 $sizes = [
