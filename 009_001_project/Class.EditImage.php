@@ -43,10 +43,14 @@ class EditImage {
     }
 
     public function setOutputSizes(array $sizes, $useLongerDimension = true)
-    {
+    {   
+        if(empty($sizes)){
+
+            throw new \Exception('Sizes can not be empty');
+        }
         foreach ($sizes as $i => $size) {
             if(!is_numeric($size) || $size == 0){
-                throw new \Exception('Sizes must be an array of positive integer found this `'.$size."` in sizes at position ".$i);
+                throw new \Exception('Sizes must be an array of positive integer found this `'.$size."` in sizes at position ".$i + 1);
 
             }
 
@@ -296,6 +300,7 @@ class EditImage {
             if ($this->useLongerDimension && imagesy($resource) > imagesx($resource)) {
                 $this->recalculateSizes($resource);
             }
+            
             foreach ($this->outputSizes as $outputSize) {
                 // Don't resize if current output size is greater than the original
                 if ($outputSize >= $image['w']) {
@@ -305,6 +310,14 @@ class EditImage {
                 $filename = $nameParts['filename'] . '_' . $outputSize . '.' . $nameParts['extension'];
                 // Delegate file output to specialized method
                 $this->outputFile($scaled, $image['type'], $filename);
+            }
+            if(empty($this->outputSizes)){
+                $outputSize = $this->useImageSize();
+                $scaled = imagescale($resource, $outputSize, -1, $this->resample);
+                $filename = $nameParts['filename'] . '_' . $outputSize . '.' . $nameParts['extension'];
+                // Delegate file output to specialized method
+                $this->outputFile($scaled, $image['type'], $filename);
+                // throw new \Exception('Hello Earth');
             }
         } else {
             // Use imagecopyresampled() if imagescale() is not supported
@@ -319,6 +332,18 @@ class EditImage {
         }
         // Reassign temporarily stored sizes to the $outputSizes property
         $this->outputSizes = $storedSizes;
+    }
+
+    protected function useImageSize()
+    {
+        foreach($this->images as $i => $image){
+        $dimension = getimagesize($image['file']);
+        return  $dimension[0];
+
+           
+            
+
+        }
     }
 
     protected function recalculateSizes($resource)
