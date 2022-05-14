@@ -43,7 +43,11 @@ class EditImage {
     }
 
     public function setOutputSizes(array $sizes, $useLongerDimension = true)
-    {
+    {   
+        if(empty($sizes)){
+
+            throw new \Exception('Sizes can not be empty');
+        }
         foreach ($sizes as $i => $size) {
             if(!is_numeric($size) || $size == 0){
                 throw new \Exception('Sizes must be an array of positive integer found this `'.$size."` in sizes at position ".$i + 1);
@@ -296,6 +300,7 @@ class EditImage {
             if ($this->useLongerDimension && imagesy($resource) > imagesx($resource)) {
                 $this->recalculateSizes($resource);
             }
+            
             foreach ($this->outputSizes as $outputSize) {
                 // Don't resize if current output size is greater than the original
                 if ($outputSize >= $image['w']) {
@@ -305,6 +310,14 @@ class EditImage {
                 $filename = $nameParts['filename'] . '_' . $outputSize . '.' . $nameParts['extension'];
                 // Delegate file output to specialized method
                 $this->outputFile($scaled, $image['type'], $filename);
+            }
+            if(empty($this->outputSizes)){
+                $outputSize = $this->useImageSize();
+                $scaled = imagescale($resource, $outputSize, -1, $this->resample);
+                $filename = $nameParts['filename'] . '_' . $outputSize . '.' . $nameParts['extension'];
+                // Delegate file output to specialized method
+                $this->outputFile($scaled, $image['type'], $filename);
+                // throw new \Exception('Hello Earth');
             }
         } else {
             // Use imagecopyresampled() if imagescale() is not supported
@@ -319,6 +332,18 @@ class EditImage {
         }
         // Reassign temporarily stored sizes to the $outputSizes property
         $this->outputSizes = $storedSizes;
+    }
+
+    protected function useImageSize()
+    {
+        foreach($this->images as $i => $image){
+        $dimension = getimagesize($image['file']);
+        return  $dimension[0];
+
+           
+            
+
+        }
     }
 
     protected function recalculateSizes($resource)
@@ -356,4 +381,68 @@ class EditImage {
         }
     }
 
+}
+
+
+
+class imageUpload {
+    protected $files;
+    protected $filedir = 'uploads/';
+    protected $allowFiles = ['jpeg', 'png', 'gif', 'webp'];
+    protected $uniqueId;
+    public function __construct(Array $files)
+    {
+        $this->files = $files;
+        $this->uniqueId =  uniqid('', true);
+        $this->checkImages();
+    }
+
+    protected function checkImages(){
+        foreach($this->files as $key =>$value){
+            foreach ($this->files[$key] as $item => $name) {
+                # code...
+                $file = $this->files[$key];
+                // echo '<br>';
+                // var_dump($file);
+                if ($file['error']) {
+                    # code...
+                    throw new \Exception("Error in file ".$file['name']);
+                    
+                }
+                if (!in_array($file['extension'], $this->allowFiles)) {
+                    # code...
+                    throw new \Exception("Invalid file type for".$file['name']);
+                    
+                }
+                if($file['size'] > 10000000){
+                    throw new \Exception('File size Large');
+                }
+                if($file['size'] <= 00){
+                    throw new \Exception("Error in file ".$file['name']);
+                }
+
+                // if()
+            }
+        }
+    }
+
+    public function moveFIles(){
+        while(is_dir($this->filedir.DIRECTORY_SEPARATOR.$this->uniqueId)){
+            $this->uniqueId = uniqid('', true);
+        }
+        if(!mkdir($this->filedir.DIRECTORY_SEPARATOR.$this->uniqueId)){
+            throw new \Exception('Fails to create dir');
+        }
+        foreach($this->files as $file){
+            $destination = $this->filedir.DIRECTORY_SEPARATOR.$this->uniqueId.DIRECTORY_SEPARATOR.$file['name'];
+            while(file_exists($destination)){
+                $destination = $this->filedir.DIRECTORY_SEPARATOR.$this->uniqueId.DIRECTORY_SEPARATOR.rand(0, 100)."__".$file['name'];
+            }
+            if(!move_uploaded_file($file['tmp_name'], $destination)){
+                
+                throw new \Exception('Fails to move '.$file['name']);
+            }
+            ;
+        }
+    }
 }
