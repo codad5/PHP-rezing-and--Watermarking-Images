@@ -11,6 +11,7 @@ function prepare_file_array(Array $files){
     	}
 		$new_files_array[$i]['extension']  = explode('.', $files['name'][$i]);
 		$new_files_array[$i]['extension'] = end($new_files_array[$i]['extension']);
+		$new_files_array[$i]['name']  = implode("_", explode(' ', $files['name'][$i]));
 
     }
     return $new_files_array;

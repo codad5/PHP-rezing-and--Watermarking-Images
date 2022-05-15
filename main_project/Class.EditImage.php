@@ -286,6 +286,10 @@ class EditImage {
         $y = $image['h'] - $this->markH - $this->marginB;
         // Merge the watermark resource into the main image resource
         imagecopy($resource, $this->watermark, $x, $y, 0, 0, $this->markW, $this->markH);
+
+        // $scaled = imagescale($this->watermark, imagesx($resource));                 
+        // // imagescale($this->watermark, );
+        // imagecopymerge($resource, $scaled, $x, $y, 0, 0, imagesx($resource), $this->markH, 50);
     }
 
     protected function generateOutput($image, $resource)
@@ -388,13 +392,19 @@ class EditImage {
 class imageUpload {
     protected $files;
     protected $filedir = 'uploads/';
-    protected $allowFiles = ['jpeg', 'png', 'gif', 'webp'];
+    protected $allowFiles = ['jpeg', 'jpg',  'png', 'gif', 'webp'];
     protected $uniqueId;
+    protected $markW;
+    protected $markH;
+    protected $margins;
+    protected $watermarkAvalibale = false;
     public function __construct(Array $files)
     {
         $this->files = $files;
         $this->uniqueId =  uniqid('', true);
         $this->checkImages();
+        
+        
     }
 
     protected function checkImages(){
@@ -411,7 +421,7 @@ class imageUpload {
                 }
                 if (!in_array($file['extension'], $this->allowFiles)) {
                     # code...
-                    throw new \Exception("Invalid file type for".$file['name']);
+                    throw new \Exception("Invalid file type for ".$file['name']);
                     
                 }
                 if($file['size'] > 10000000){
@@ -426,23 +436,81 @@ class imageUpload {
         }
     }
 
-    public function moveFIles(){
+    public function moveFIles($needle = null)
+    {
+        $needle = isset($needle) ? trim($needle)."_" : '';
         while(is_dir($this->filedir.DIRECTORY_SEPARATOR.$this->uniqueId)){
             $this->uniqueId = uniqid('', true);
         }
         if(!mkdir($this->filedir.DIRECTORY_SEPARATOR.$this->uniqueId)){
+            
+            throw new \Exception('Fails to create dir');
+        }
+        if(!mkdir($this->filedir.DIRECTORY_SEPARATOR.$this->uniqueId.DIRECTORY_SEPARATOR."edited")){
+            
             throw new \Exception('Fails to create dir');
         }
         foreach($this->files as $file){
-            $destination = $this->filedir.DIRECTORY_SEPARATOR.$this->uniqueId.DIRECTORY_SEPARATOR.$file['name'];
+            $destination = $this->filedir.DIRECTORY_SEPARATOR.$this->uniqueId.DIRECTORY_SEPARATOR.$needle.$file['name'];
             while(file_exists($destination)){
-                $destination = $this->filedir.DIRECTORY_SEPARATOR.$this->uniqueId.DIRECTORY_SEPARATOR.rand(0, 100)."__".$file['name'];
+                $destination = $this->filedir.DIRECTORY_SEPARATOR.$this->uniqueId.DIRECTORY_SEPARATOR.rand(0, 100).$needle."__".$file['name'];
             }
-            if(!move_uploaded_file($file['tmp_name'], $destination)){
+            
+                if(!move_uploaded_file($file['tmp_name'], $destination)){
+                    
+                    throw new \Exception('Fails to move '.$file['name']);
                 
-                throw new \Exception('Fails to move '.$file['name']);
+                }
+            
+            }
+    }
+
+    public function addWatermark($watermark, $type, $markW = 170, $markH = 25, $margins = [10, 10]){
+        $this->markW = $markW;
+        $this->markH = $markH;
+        $this->margins = $margins;
+        $des = $this->filedir.DIRECTORY_SEPARATOR.$this->uniqueId.DIRECTORY_SEPARATOR;
+        switch($type){
+            case 'text':
+            $watermarkresource = imagecreatetruecolor($this->markW, $this->markH);
+            imagefilledrectangle($watermarkresource, 0,0,$this->markW, $this->markH, 0x000000);
+            imagestring($watermarkresource, 25, 10, 5, $watermark, 0xFFFFFF);
+            if(!imagejpeg($watermarkresource, $des.'watermark.jpg')){
+                throw new \Exception('fail to process watermark');
             }
             ;
+            imagedestroy($watermarkresource);
+            break;
+            case 'image': 
+                $watermark['extension'] = explode('.', $watermark['name']); 
+                $watermark['extension'] = end($watermark['extension']);
+                $watermark['name'] = 'watermark.'.$watermark['extension']; 
+                $this->files[] = $watermark;
+                $this->checkImages();
+                // $this->moveFIles();
+                if(!move_uploaded_file($watermark['tmp_name'], $des.$watermark['name'])){
+                    
+                    throw new \Exception('Fails to move watermark'.$watermark['name']);
+                
+                }
+            break;
         }
+
+        $this->watermarkAvalibale = true;
+    }
+
+    public function getUploadID(){
+        return $this->uniqueId;
+    }
+    public final function keepWoke(){
+        
+    }
+
+    public function __destruct(){
+        // $des = $this->filedir.DIRECTORY_SEPARATOR.$this->uniqueId;
+        // if(!rmdir($des)){
+        //     throw new \Exception("Error ending your request");
+        // }   
+        // echo "done";
     }
 }
